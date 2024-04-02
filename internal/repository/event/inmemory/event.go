@@ -17,6 +17,7 @@ type EventRepository struct {
 func NewEventRepository() *EventRepository {
 	return &EventRepository{
 		storage: make(map[int64][]domain.Event),
+		mu:      sync.Mutex{},
 	}
 }
 

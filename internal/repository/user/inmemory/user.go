@@ -19,6 +19,7 @@ func NewUserRepository() *UserRepository {
 	return &UserRepository{
 		storage: make(map[int64]domain.User),
 		lastId:  0,
+		mu:      sync.Mutex{},
 	}
 }
 

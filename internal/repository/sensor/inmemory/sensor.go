@@ -22,6 +22,7 @@ func NewSensorRepository() *SensorRepository {
 		idStorage: make(map[int64]*domain.Sensor),
 		snStorage: make(map[string]*domain.Sensor),
 		lastId:    0,
+		mu:        sync.Mutex{},
 	}
 }
 

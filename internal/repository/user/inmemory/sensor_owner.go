@@ -14,6 +14,7 @@ type SensorOwnerRepository struct {
 func NewSensorOwnerRepository() *SensorOwnerRepository {
 	return &SensorOwnerRepository{
 		storage: make([]domain.SensorOwner, 0),
+		mu:      sync.Mutex{},
 	}
 }
 
