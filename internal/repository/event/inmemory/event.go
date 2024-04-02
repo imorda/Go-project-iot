@@ -10,13 +10,13 @@ import (
 var ErrEventNotFound = errors.New("event not found")
 
 type EventRepository struct {
-	storage map[int64][]domain.Event
+	storage map[int64]domain.Event
 	mu      sync.Mutex
 }
 
 func NewEventRepository() *EventRepository {
 	return &EventRepository{
-		storage: make(map[int64][]domain.Event),
+		storage: make(map[int64]domain.Event),
 		mu:      sync.Mutex{},
 	}
 }
@@ -30,12 +30,9 @@ func (r *EventRepository) SaveEvent(ctx context.Context, event *domain.Event) er
 	}
 
 	r.mu.Lock()
-	slice, exists := r.storage[event.SensorID]
-	if !exists {
-		slice = make([]domain.Event, 0, 1)
+	if cur, exists := r.storage[event.SensorID]; !exists || cur.Timestamp.Before(event.Timestamp) {
+		r.storage[event.SensorID] = *event
 	}
-
-	r.storage[event.SensorID] = append(slice, *event)
 	r.mu.Unlock()
 
 	return nil
@@ -53,5 +50,5 @@ func (r *EventRepository) GetLastEventBySensorID(ctx context.Context, id int64) 
 		return nil, ErrEventNotFound
 	}
 
-	return &val[len(val)-1], nil
+	return &val, nil
 }
