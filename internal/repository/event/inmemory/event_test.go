@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"homework/internal/domain"
+	"homework/internal/usecase"
 	"sync"
 	"testing"
 	"time"
@@ -111,7 +112,7 @@ func TestEventRepository_GetLastEventBySensorID(t *testing.T) {
 	t.Run("fail, event not found", func(t *testing.T) {
 		er := NewEventRepository()
 		_, err := er.GetLastEventBySensorID(context.Background(), 234)
-		assert.ErrorIs(t, err, ErrEventNotFound)
+		assert.ErrorIs(t, err, usecase.ErrEventNotFound)
 	})
 
 	t.Run("ok, save and get one", func(t *testing.T) {

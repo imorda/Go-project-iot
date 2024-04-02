@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
-	"homework/internal/repository/sensor/inmemory"
 	"testing"
 	"time"
 
@@ -32,14 +31,14 @@ func Test_event_ReceiveEvent(t *testing.T) {
 
 		sr := NewMockSensorRepository(ctrl)
 
-		sr.EXPECT().GetSensorBySerialNumber(ctx, gomock.Any()).Times(1).Return(nil, inmemory.ErrSensorNotFound)
+		sr.EXPECT().GetSensorBySerialNumber(ctx, gomock.Any()).Times(1).Return(nil, ErrSensorNotFound)
 
 		e := NewEvent(nil, sr)
 
 		err := e.ReceiveEvent(ctx, &domain.Event{
 			Timestamp: time.Now(),
 		})
-		assert.ErrorIs(t, err, inmemory.ErrSensorNotFound)
+		assert.ErrorIs(t, err, ErrSensorNotFound)
 	})
 
 	t.Run("err, event save error", func(t *testing.T) {

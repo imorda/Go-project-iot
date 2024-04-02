@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
-	"homework/internal/repository/sensor/inmemory"
-	inmemory2 "homework/internal/repository/user/inmemory"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -71,12 +69,12 @@ func Test_user_AttachSensorToUser(t *testing.T) {
 		defer cancel()
 
 		ur := NewMockUserRepository(ctrl)
-		ur.EXPECT().GetUserByID(ctx, gomock.Any()).Times(1).Return(nil, inmemory2.ErrUserNotFound)
+		ur.EXPECT().GetUserByID(ctx, gomock.Any()).Times(1).Return(nil, ErrUserNotFound)
 
 		u := NewUser(ur, nil, nil)
 
 		err := u.AttachSensorToUser(ctx, 1, 1)
-		assert.ErrorIs(t, err, inmemory2.ErrUserNotFound)
+		assert.ErrorIs(t, err, ErrUserNotFound)
 	})
 
 	t.Run("fail, user not found", func(t *testing.T) {
@@ -87,12 +85,12 @@ func Test_user_AttachSensorToUser(t *testing.T) {
 		ur.EXPECT().GetUserByID(ctx, gomock.Any()).Times(1).Return(&domain.User{ID: 1}, nil)
 
 		sr := NewMockSensorRepository(ctrl)
-		sr.EXPECT().GetSensorByID(ctx, gomock.Any()).Times(1).Return(nil, inmemory.ErrSensorNotFound)
+		sr.EXPECT().GetSensorByID(ctx, gomock.Any()).Times(1).Return(nil, ErrSensorNotFound)
 
 		u := NewUser(ur, nil, sr)
 
 		err := u.AttachSensorToUser(ctx, 1, 1)
-		assert.ErrorIs(t, err, inmemory.ErrSensorNotFound)
+		assert.ErrorIs(t, err, ErrSensorNotFound)
 	})
 
 	t.Run("fail, save error", func(t *testing.T) {
@@ -147,12 +145,12 @@ func Test_user_GetUserSensors(t *testing.T) {
 		defer cancel()
 
 		ur := NewMockUserRepository(ctrl)
-		ur.EXPECT().GetUserByID(ctx, gomock.Any()).Times(1).Return(nil, inmemory2.ErrUserNotFound)
+		ur.EXPECT().GetUserByID(ctx, gomock.Any()).Times(1).Return(nil, ErrUserNotFound)
 
 		u := NewUser(ur, nil, nil)
 
 		_, err := u.GetUserSensors(ctx, 1)
-		assert.ErrorIs(t, err, inmemory2.ErrUserNotFound)
+		assert.ErrorIs(t, err, ErrUserNotFound)
 	})
 
 	t.Run("fail, sensors owner repo error", func(t *testing.T) {

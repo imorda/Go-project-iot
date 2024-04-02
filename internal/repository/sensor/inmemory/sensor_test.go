@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"homework/internal/domain"
+	"homework/internal/usecase"
 	"math/rand/v2"
 	"strconv"
 	"sync"
@@ -170,7 +171,7 @@ func TestSensorRepository_GetSensorByID(t *testing.T) {
 		sr := NewSensorRepository()
 
 		_, err := sr.GetSensorByID(context.Background(), 123)
-		assert.ErrorIs(t, err, ErrSensorNotFound)
+		assert.ErrorIs(t, err, usecase.ErrSensorNotFound)
 	})
 }
 
@@ -199,7 +200,7 @@ func TestSensorRepository_GetSensorBySerialNumber(t *testing.T) {
 		defer cancel()
 
 		_, err := sr.GetSensorBySerialNumber(ctx, "12345")
-		assert.ErrorIs(t, err, ErrSensorNotFound)
+		assert.ErrorIs(t, err, usecase.ErrSensorNotFound)
 	})
 
 	t.Run("ok, save and get one", func(t *testing.T) {

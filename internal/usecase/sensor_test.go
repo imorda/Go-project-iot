@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
-	"homework/internal/repository/sensor/inmemory"
 	"testing"
 	"time"
 
@@ -68,7 +67,7 @@ func Test_sensor_RegisterSensor(t *testing.T) {
 
 		sr := NewMockSensorRepository(ctrl)
 		expectedError := errors.New("some error")
-		sr.EXPECT().GetSensorBySerialNumber(ctx, gomock.Any()).Return(nil, inmemory.ErrSensorNotFound)
+		sr.EXPECT().GetSensorBySerialNumber(ctx, gomock.Any()).Return(nil, ErrSensorNotFound)
 		sr.EXPECT().SaveSensor(ctx, gomock.Any()).Times(1).Return(expectedError)
 
 		a := NewSensor(sr)
@@ -104,7 +103,7 @@ func Test_sensor_RegisterSensor(t *testing.T) {
 
 			return nil
 		})
-		sr.EXPECT().GetSensorBySerialNumber(ctx, sensor.SerialNumber).Return(nil, inmemory.ErrSensorNotFound)
+		sr.EXPECT().GetSensorBySerialNumber(ctx, sensor.SerialNumber).Return(nil, ErrSensorNotFound)
 
 		s := NewSensor(sr)
 
@@ -138,7 +137,7 @@ func Test_sensor_RegisterSensor(t *testing.T) {
 
 			return nil
 		})
-		sr.EXPECT().GetSensorBySerialNumber(ctx, sensor.SerialNumber).Return(nil, inmemory.ErrSensorNotFound)
+		sr.EXPECT().GetSensorBySerialNumber(ctx, sensor.SerialNumber).Return(nil, ErrSensorNotFound)
 
 		s := NewSensor(sr)
 
@@ -224,12 +223,12 @@ func Test_sensor_GetSensorByID(t *testing.T) {
 		defer cancel()
 
 		sr := NewMockSensorRepository(ctrl)
-		sr.EXPECT().GetSensorByID(ctx, gomock.Any()).Times(1).Return(nil, inmemory.ErrSensorNotFound)
+		sr.EXPECT().GetSensorByID(ctx, gomock.Any()).Times(1).Return(nil, ErrSensorNotFound)
 
 		s := NewSensor(sr)
 
 		_, err := s.GetSensorByID(ctx, 1)
-		assert.ErrorIs(t, err, inmemory.ErrSensorNotFound)
+		assert.ErrorIs(t, err, ErrSensorNotFound)
 	})
 
 	t.Run("ok, got sensor", func(t *testing.T) {

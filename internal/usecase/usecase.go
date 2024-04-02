@@ -11,6 +11,9 @@ var (
 	ErrWrongSensorType         = errors.New("wrong sensor type")
 	ErrInvalidEventTimestamp   = errors.New("invalid event timestamp")
 	ErrInvalidUserName         = errors.New("invalid user name")
+	ErrSensorNotFound          = errors.New("sensor not found")
+	ErrUserNotFound            = errors.New("user not found")
+	ErrEventNotFound           = errors.New("event not found")
 )
 
 //go:generate mockgen -source usecase.go -package usecase -destination usecase_mock.go
