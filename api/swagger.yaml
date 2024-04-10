@@ -164,6 +164,10 @@ paths:
           schema:
             type: object
             $ref: '#/definitions/Sensor'
+        '404':
+          description: Датчик с указанным идентификатором не найден
+        '422':
+          description: Идентификатор датчика не валиден
         '406':
           description: Запрошен неподдерживаемый формат тела ответа
         default:
@@ -180,6 +184,10 @@ paths:
       responses:
         '200':
           description: Успех
+        '404':
+          description: Датчик с указанным идентификатором не найден
+        '422':
+          description: Идентификатор датчика не валиден
         '406':
           description: Запрошен неподдерживаемый формат тела ответа
         default:
@@ -516,6 +524,8 @@ definitions:
         type: integer
         format: int64
         minimum: 1
+    required:
+      - sensor_id
     example:
       sensor_id: 1
   SensorEvent:

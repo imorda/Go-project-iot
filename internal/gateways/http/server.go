@@ -2,7 +2,6 @@ package http
 
 import (
 	"fmt"
-
 	"homework/internal/usecase"
 
 	"github.com/gin-gonic/gin"

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"homework/internal/usecase"
 	"log"
 	"net/http"
 
@@ -9,7 +10,6 @@ import (
 	eventRepository "homework/internal/repository/event/inmemory"
 	sensorRepository "homework/internal/repository/sensor/inmemory"
 	userRepository "homework/internal/repository/user/inmemory"
-	"homework/internal/usecase"
 )
 
 func main() {
