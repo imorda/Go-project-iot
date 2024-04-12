@@ -375,6 +375,13 @@ paths:
       operationId: usersSensorsOptions
       tags:
         - users
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "Идентификатор пользователя"
+          required: true
+          type: "integer"
+          format: "int64"
       responses:
         "204":
           description: Успех
