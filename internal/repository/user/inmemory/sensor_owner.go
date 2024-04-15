@@ -7,13 +7,13 @@ import (
 )
 
 type SensorOwnerRepository struct {
-	storage []domain.SensorOwner
+	storage map[domain.SensorOwner]struct{}
 	mu      sync.Mutex
 }
 
 func NewSensorOwnerRepository() *SensorOwnerRepository {
 	return &SensorOwnerRepository{
-		storage: make([]domain.SensorOwner, 0),
+		storage: make(map[domain.SensorOwner]struct{}),
 		mu:      sync.Mutex{},
 	}
 }
@@ -24,7 +24,7 @@ func (r *SensorOwnerRepository) SaveSensorOwner(ctx context.Context, sensorOwner
 	}
 
 	r.mu.Lock()
-	r.storage = append(r.storage, sensorOwner)
+	r.storage[sensorOwner] = struct{}{}
 	r.mu.Unlock()
 
 	return nil
@@ -37,7 +37,7 @@ func (r *SensorOwnerRepository) GetSensorsByUserID(ctx context.Context, userID i
 
 	result := make([]domain.SensorOwner, 0)
 	r.mu.Lock()
-	for _, so := range r.storage {
+	for so := range r.storage {
 		if so.UserID == userID {
 			result = append(result, so)
 		}
