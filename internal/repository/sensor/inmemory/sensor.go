@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
+	"homework/internal/usecase"
 	"sync"
 	"time"
 )
-
-var ErrSensorNotFound = errors.New("sensor not found")
 
 type SensorRepository struct {
 	idStorage map[int64]*domain.Sensor
@@ -75,7 +74,7 @@ func (r *SensorRepository) GetSensorByID(ctx context.Context, id int64) (*domain
 	val, exists := r.idStorage[id]
 	r.mu.Unlock()
 	if !exists {
-		return nil, ErrSensorNotFound
+		return nil, usecase.ErrSensorNotFound
 	}
 
 	return val, nil
@@ -90,7 +89,7 @@ func (r *SensorRepository) GetSensorBySerialNumber(ctx context.Context, sn strin
 	val, exists := r.snStorage[sn]
 	r.mu.Unlock()
 	if !exists {
-		return nil, ErrSensorNotFound
+		return nil, usecase.ErrSensorNotFound
 	}
 
 	return val, nil

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"homework/internal/domain"
-	"homework/internal/repository/sensor/inmemory"
 	"regexp"
 )
 
@@ -49,7 +48,7 @@ func (s *Sensor) RegisterSensor(ctx context.Context, sensor *domain.Sensor) (*do
 		existing.Description = sensor.Description
 		existing.IsActive = sensor.IsActive
 		return existing, nil
-	} else if !errors.Is(err, inmemory.ErrSensorNotFound) { // bad design :(, consider refactoring interface to invert that dependency
+	} else if !errors.Is(err, ErrSensorNotFound) { // bad design :(, consider refactoring interface to invert that dependency
 		return nil, err
 	}
 

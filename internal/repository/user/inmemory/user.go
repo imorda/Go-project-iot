@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
+	"homework/internal/usecase"
 	"sync"
 )
-
-var ErrUserNotFound = errors.New("user not found")
 
 type UserRepository struct {
 	storage map[int64]domain.User
@@ -51,7 +50,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*domain.Use
 	val, exists := r.storage[id]
 	r.mu.Unlock()
 	if !exists {
-		return nil, ErrUserNotFound
+		return nil, usecase.ErrUserNotFound
 	}
 
 	return &val, nil

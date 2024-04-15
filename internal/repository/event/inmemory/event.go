@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
+	"homework/internal/usecase"
 	"sync"
 )
-
-var ErrEventNotFound = errors.New("event not found")
 
 type EventRepository struct {
 	storage map[int64]domain.Event
@@ -47,7 +46,7 @@ func (r *EventRepository) GetLastEventBySensorID(ctx context.Context, id int64) 
 	val, exists := r.storage[id]
 	r.mu.Unlock()
 	if !exists {
-		return nil, ErrEventNotFound
+		return nil, usecase.ErrEventNotFound
 	}
 
 	return &val, nil
