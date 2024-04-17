@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"homework/internal/usecase"
 
@@ -23,7 +24,7 @@ func NewServer(useCases UseCases, options ...func(*Server)) *Server {
 	r := gin.Default()
 	r.HandleMethodNotAllowed = true
 	apiGroup := r.Group("/api")
-	setupRouter(apiGroup, useCases)
+	setupRouter(apiGroup, useCases, NewWebSocketHandler(useCases))
 
 	s := &Server{router: r, host: "localhost", port: 8080}
 	for _, o := range options {
@@ -45,6 +46,6 @@ func WithPort(port uint16) func(*Server) {
 	}
 }
 
-func (s *Server) Run() error {
+func (s *Server) Run(ctx context.Context) error {
 	return s.router.Run(fmt.Sprintf("%s:%d", s.host, s.port))
 }

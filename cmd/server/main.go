@@ -1,7 +1,14 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"homework/internal/usecase"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+
 	httpGateway "homework/internal/gateways/http"
 	eventRepository "homework/internal/repository/event/inmemory"
 	sensorRepository "homework/internal/repository/sensor/inmemory"
@@ -14,6 +21,9 @@ import (
 )
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	er := eventRepository.NewEventRepository()
 	sr := sensorRepository.NewSensorRepository()
 	ur := userRepository.NewUserRepository()
@@ -37,7 +47,7 @@ func main() {
 		httpGateway.WithPort(uint16(iPort))(r)
 	}
 
-	if err := r.Run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := r.Run(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Printf("error during server shutdown: %v", err)
 	}
 }

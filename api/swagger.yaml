@@ -141,6 +141,26 @@ paths:
               type: array
               items:
                 type: string
+  /sensors/{sensor_id}/events:
+    get:
+      summary: Открытие ws по датчику
+      description: Позволяет подписаться на рассылку последних событий пришедших от датчика
+      tags:
+        - sensors
+      parameters:
+        - name: "sensor_id"
+          in: "path"
+          description: "Идентификатор датчика"
+          required: true
+          type: "integer"
+          format: "int64"
+      responses:
+        "101":
+          description: Успешное открытие ws
+        default:
+          description: Ошибка исполнения
+          schema:
+            $ref: "#/definitions/Error"
   /sensors/{sensor_id}:
     get:
       summary: Получение датчика
