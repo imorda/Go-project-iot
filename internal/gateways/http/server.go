@@ -21,7 +21,8 @@ type UseCases struct {
 
 func NewServer(useCases UseCases, options ...func(*Server)) *Server {
 	r := gin.Default()
-	setupRouter(r, useCases)
+	apiGroup := r.Group("/api")
+	setupRouter(apiGroup, useCases)
 
 	s := &Server{router: r, host: "localhost", port: 8080}
 	for _, o := range options {

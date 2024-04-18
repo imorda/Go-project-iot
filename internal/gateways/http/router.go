@@ -1,9 +1,11 @@
 package http
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+)
 
-func setupRouter(r *gin.Engine, _ UseCases) {
-	r.GET("/ping", func(c *gin.Context) {
-		c.String(200, "pong")
-	})
+func setupRouter(r *gin.RouterGroup, uc UseCases) {
+	setupEventsHandler(r.Group("/events"), uc)
+	setupSensorsHandler(r.Group("/sensors"), uc)
+	setupUsersHandler(r.Group("/users"), uc)
 }
