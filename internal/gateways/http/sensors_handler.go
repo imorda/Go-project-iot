@@ -2,13 +2,14 @@ package http
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/go-openapi/strfmt"
 	"homework/internal/domain"
 	"homework/internal/gateways/http/dtos"
 	"homework/internal/usecase"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-openapi/strfmt"
 )
 
 func sensorGetImpl(sensor *domain.Sensor) dtos.Sensor {
@@ -28,37 +29,41 @@ func sensorGetImpl(sensor *domain.Sensor) dtos.Sensor {
 	return sensorDto
 }
 
+func sensorsGetImpl(ctx *gin.Context, uc UseCases) []dtos.Sensor {
+	if err := isFormatSupported(ctx, JSONType); err != nil {
+		abortWithAPIError(ctx, http.StatusNotAcceptable, err)
+		return nil
+	}
+
+	sensors, err := uc.Sensor.GetSensors(ctx)
+	if err != nil {
+		abortWithAPIError(ctx, http.StatusInternalServerError, err)
+		return nil
+	}
+
+	sensorDtos := make([]dtos.Sensor, 0, len(sensors))
+	for _, sens := range sensors {
+		sensDto := sensorGetImpl(&sens)
+		sensorDtos = append(sensorDtos, sensDto)
+	}
+	return sensorDtos
+}
+
 func sensorsGetHandler(uc UseCases) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if err := isFormatSupported(ctx, JSONType); err != nil {
-			abortWithAPIError(ctx, http.StatusNotAcceptable, err)
-			return
+		sensorDtos := sensorsGetImpl(ctx, uc)
+		if !ctx.IsAborted() {
+			ctx.AbortWithStatusJSON(http.StatusOK, sensorDtos)
 		}
-
-		sensors, err := uc.Sensor.GetSensors(ctx)
-		if err != nil {
-			abortWithAPIError(ctx, http.StatusInternalServerError, err)
-			return
-		}
-
-		sensorDtos := make([]dtos.Sensor, 0, len(sensors))
-		for _, sens := range sensors {
-			sensDto := sensorGetImpl(&sens)
-			sensorDtos = append(sensorDtos, sensDto)
-		}
-
-		ctx.AbortWithStatusJSON(http.StatusOK, sensorDtos)
 	}
 }
 
 func sensorsHeadHandler(uc UseCases) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if err := isFormatSupported(ctx, JSONType); err != nil {
-			abortWithAPIError(ctx, http.StatusNotAcceptable, err)
-			return
+		sensorDtos := sensorsGetImpl(ctx, uc)
+		if !ctx.IsAborted() {
+			headImpl(ctx, sensorDtos)
 		}
-
-		ctx.Status(http.StatusOK)
 	}
 }
 
@@ -119,20 +124,20 @@ func sensorByIdGetHandler(uc UseCases) gin.HandlerFunc {
 
 func sensorByIdHeadHandler(uc UseCases) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		sensorByIdCommonHandler(ctx, uc)
+		sensor := sensorByIdCommonHandler(ctx, uc)
 		if !ctx.IsAborted() {
-			ctx.Status(http.StatusOK)
+			headImpl(ctx, sensorGetImpl(sensor))
 		}
 	}
 }
 
 func setupSensorsHandler(r *gin.RouterGroup, uc UseCases) {
-	r.GET("/sensors", sensorsGetHandler(uc))
-	r.HEAD("/sensors", sensorsHeadHandler(uc))
-	r.POST("/sensors", sensorsPostHandler(uc))
-	r.OPTIONS("/sensors", optionsHandler(http.MethodGet, http.MethodHead, http.MethodPost))
+	r.GET("", sensorsGetHandler(uc))
+	r.HEAD("", sensorsHeadHandler(uc))
+	r.POST("", sensorsPostHandler(uc))
+	r.OPTIONS("", optionsHandler(http.MethodGet, http.MethodHead, http.MethodPost))
 
-	r.GET("/sensors/:sensor_id", sensorByIdGetHandler(uc))
-	r.HEAD("/sensors/:sensor_id", sensorByIdHeadHandler(uc))
-	r.OPTIONS("/sensors/:sensor_id", optionsHandler(http.MethodGet, http.MethodHead))
+	r.GET("/:sensor_id", sensorByIdGetHandler(uc))
+	r.HEAD("/:sensor_id", sensorByIdHeadHandler(uc))
+	r.OPTIONS("/:sensor_id", optionsHandler(http.MethodGet, http.MethodHead))
 }

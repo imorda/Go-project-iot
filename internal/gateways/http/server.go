@@ -21,6 +21,7 @@ type UseCases struct {
 
 func NewServer(useCases UseCases, options ...func(*Server)) *Server {
 	r := gin.Default()
+	r.HandleMethodNotAllowed = true
 	apiGroup := r.Group("/api")
 	setupRouter(apiGroup, useCases)
 

@@ -1,13 +1,16 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/go-openapi/strfmt"
 	"homework/internal/gateways/http/dtos"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-openapi/strfmt"
 )
 
 type ContentType = string
@@ -72,8 +75,8 @@ type Validator = interface {
 
 func optionsHandler(methods ...string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ctx.Header("Allow", strings.Join(methods, ","))
-		ctx.Status(http.StatusOK)
+		ctx.Header("Allow", strings.Join(append(methods, http.MethodOptions), ","))
+		ctx.Status(http.StatusNoContent)
 	}
 }
 
@@ -85,4 +88,11 @@ func requireContentType(ctx *gin.Context, contentType ...ContentType) error {
 		}
 	}
 	return fmt.Errorf("got %w: %v", UnsupportedContentType, realType)
+}
+
+func headImpl(ctx *gin.Context, jsonObj any) {
+	if sensorBytes, err := json.Marshal(jsonObj); err == nil {
+		ctx.Header("Content-Length", strconv.Itoa(len(sensorBytes)))
+		ctx.Status(http.StatusOK)
+	}
 }

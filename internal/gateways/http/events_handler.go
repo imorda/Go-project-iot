@@ -1,11 +1,12 @@
 package http
 
 import (
-	"github.com/gin-gonic/gin"
 	"homework/internal/domain"
 	"homework/internal/gateways/http/dtos"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func eventsPostHandler(uc UseCases) gin.HandlerFunc {
@@ -29,6 +30,6 @@ func eventsPostHandler(uc UseCases) gin.HandlerFunc {
 }
 
 func setupEventsHandler(r *gin.RouterGroup, uc UseCases) {
-	r.POST("/events", eventsPostHandler(uc))
-	r.OPTIONS("/events", optionsHandler(http.MethodPost))
+	r.POST("", eventsPostHandler(uc))
+	r.OPTIONS("", optionsHandler(http.MethodPost))
 }

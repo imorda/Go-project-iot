@@ -2,12 +2,13 @@ package http
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
 	"homework/internal/domain"
 	"homework/internal/gateways/http/dtos"
 	"homework/internal/usecase"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 func userGetImpl(sensor *domain.User) dtos.User {
@@ -37,7 +38,7 @@ func usersPostHandler(uc UseCases) gin.HandlerFunc {
 	}
 }
 
-func userSensorsCommonHandler(ctx *gin.Context, uc UseCases) (*int64, []domain.Sensor) {
+func userSensorsCommonHandler(ctx *gin.Context, uc UseCases) (*int64, []dtos.Sensor) {
 	userId, err := strconv.ParseInt(ctx.Param("user_id"), 10, 64)
 	if err != nil {
 		abortWithAPIError(ctx, http.StatusUnprocessableEntity, err)
@@ -53,7 +54,13 @@ func userSensorsCommonHandler(ctx *gin.Context, uc UseCases) (*int64, []domain.S
 		return &userId, nil
 	}
 
-	return &userId, sensors
+	sensorDtos := make([]dtos.Sensor, 0, len(sensors))
+	for _, sens := range sensors {
+		sensDto := sensorGetImpl(&sens)
+		sensorDtos = append(sensorDtos, sensDto)
+	}
+
+	return &userId, sensorDtos
 }
 
 func userSensorsGetHandler(uc UseCases) gin.HandlerFunc {
@@ -63,14 +70,8 @@ func userSensorsGetHandler(uc UseCases) gin.HandlerFunc {
 			return
 		}
 
-		_, sensors := userSensorsCommonHandler(ctx, uc)
+		_, sensorDtos := userSensorsCommonHandler(ctx, uc)
 		if !ctx.IsAborted() {
-			sensorDtos := make([]dtos.Sensor, 0, len(sensors))
-			for _, sens := range sensors {
-				sensDto := sensorGetImpl(&sens)
-				sensorDtos = append(sensorDtos, sensDto)
-			}
-
 			ctx.AbortWithStatusJSON(http.StatusOK, sensorDtos)
 		}
 	}
@@ -83,9 +84,9 @@ func userSensorsHeadHandler(uc UseCases) gin.HandlerFunc {
 			return
 		}
 
-		userSensorsCommonHandler(ctx, uc)
+		_, sensorDtos := userSensorsCommonHandler(ctx, uc)
 		if !ctx.IsAborted() {
-			ctx.Status(http.StatusOK)
+			headImpl(ctx, sensorDtos)
 		}
 	}
 }
@@ -111,11 +112,11 @@ func userSensorPostHandler(uc UseCases) gin.HandlerFunc {
 }
 
 func setupUsersHandler(r *gin.RouterGroup, uc UseCases) {
-	r.POST("/users", usersPostHandler(uc))
-	r.OPTIONS("/users", optionsHandler(http.MethodPost))
+	r.POST("", usersPostHandler(uc))
+	r.OPTIONS("", optionsHandler(http.MethodPost))
 
-	r.GET("/users/:user_id/sensors", userSensorsGetHandler(uc))
-	r.HEAD("/users/:user_id/sensors", userSensorsHeadHandler(uc))
-	r.POST("/users/:user_id/sensors", userSensorPostHandler(uc))
-	r.OPTIONS("/users/:user_id/sensors", optionsHandler(http.MethodGet, http.MethodHead, http.MethodPost))
+	r.GET("/:user_id/sensors", userSensorsGetHandler(uc))
+	r.HEAD("/:user_id/sensors", userSensorsHeadHandler(uc))
+	r.POST("/:user_id/sensors", userSensorPostHandler(uc))
+	r.OPTIONS("/:user_id/sensors", optionsHandler(http.MethodGet, http.MethodHead, http.MethodPost))
 }
