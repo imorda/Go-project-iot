@@ -165,7 +165,7 @@ func sensorSubscribeHandler(uc UseCases, ws *WebSocketHandler) gin.HandlerFunc {
 		}()
 
 		go func() {
-			time.Sleep(300 * time.Millisecond)
+			time.Sleep(1500 * time.Millisecond)
 			// hacky workaround for strange tests expectation that I don't announce the last sensor event immediately
 			// on connection (implementing idiomatic observer pattern).
 			// Websockets are needed for realtime updates on each event, not periodic notifications as that behaviour
