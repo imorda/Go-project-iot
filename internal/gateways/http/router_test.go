@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"homework/internal/domain"
 	"homework/internal/usecase"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 
 	eventRepository "homework/internal/repository/event/inmemory"
 	sensorRepository "homework/internal/repository/sensor/inmemory"
+	subscriptionRepository "homework/internal/repository/subscription/inmemory"
 	userRepository "homework/internal/repository/user/inmemory"
 )
 
@@ -22,12 +24,14 @@ var (
 	sr  = sensorRepository.NewSensorRepository()
 	ur  = userRepository.NewUserRepository()
 	sor = userRepository.NewSensorOwnerRepository()
+	esr = subscriptionRepository.NewSubscriptionRepository[domain.Event]()
 )
 
 var useCases = UseCases{
-	Event:  usecase.NewEvent(er, sr),
-	Sensor: usecase.NewSensor(sr),
-	User:   usecase.NewUser(ur, sor, sr),
+	Event:             usecase.NewEvent(er, sr, esr),
+	Sensor:            usecase.NewSensor(sr),
+	User:              usecase.NewUser(ur, sor, sr),
+	EventSubscription: usecase.NewSubscription[domain.Event](esr, sr),
 }
 
 var router = gin.Default()

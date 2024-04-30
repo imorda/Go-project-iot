@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"homework/internal/domain"
 	"homework/internal/gateways/http/dtos"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-openapi/strfmt"
@@ -63,10 +66,14 @@ func isFormatSupported(ctx *gin.Context, contentType ...ContentType) error {
 	return fmt.Errorf("%w requested: %v", UnsupportedAcceptType, expType)
 }
 
-func abortWithAPIError(ctx *gin.Context, code int, err error) {
+func formatAPIError(err error) *dtos.Error {
 	errReason := err.Error()
-	errDto := dtos.Error{Reason: &errReason}
-	ctx.AbortWithStatusJSON(code, errDto)
+	dto := dtos.Error{Reason: &errReason}
+	return &dto
+}
+
+func abortWithAPIError(ctx *gin.Context, code int, err error) {
+	ctx.AbortWithStatusJSON(code, formatAPIError(err))
 }
 
 type Validator = interface {
@@ -95,4 +102,51 @@ func headImpl(ctx *gin.Context, jsonObj any) {
 		ctx.Header("Content-Length", strconv.Itoa(len(sensorBytes)))
 		ctx.Status(http.StatusOK)
 	}
+}
+
+func eventChannelAdapter(ec <-chan domain.Event) <-chan []byte {
+	out := make(chan []byte)
+	go func() {
+		defer close(out)
+		for i := range ec {
+			encoded, err := json.Marshal(&i)
+			if err != nil {
+				log.Printf("unable to encode event %v: %v", i.SensorID, err)
+				return
+			}
+			out <- encoded
+		}
+	}()
+	return out
+}
+
+func channelBatcher[T any](ec <-chan T, period time.Duration) <-chan T {
+	toSend := time.NewTicker(period)
+	out := make(chan T)
+	go func() {
+		defer toSend.Stop()
+		defer close(out)
+
+		var buffer []T
+		flushBuffer := func() {
+			for _, i := range buffer {
+				out <- i
+			}
+			buffer = nil
+		}
+
+		for {
+			select {
+			case readVal, ok := <-ec:
+				if !ok {
+					flushBuffer()
+					break
+				}
+				buffer = append(buffer, readVal)
+			case <-toSend.C:
+				flushBuffer()
+			}
+		}
+	}()
+	return out
 }

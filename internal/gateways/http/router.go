@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupRouter(r gin.IRouter, uc UseCases, _ *WebSocketHandler) {
+func setupRouter(r gin.IRouter, uc UseCases, ws *WebSocketHandler) {
 	if rEngine, ok := r.(*gin.Engine); ok {
 		rEngine.HandleMethodNotAllowed = true // Hack (bad tests design):
 		// tests require to set "/api" group up *at the *level above the router*,
@@ -13,6 +13,6 @@ func setupRouter(r gin.IRouter, uc UseCases, _ *WebSocketHandler) {
 	}
 
 	setupEventsHandler(r.Group("/events"), uc)
-	setupSensorsHandler(r.Group("/sensors"), uc)
+	setupSensorsHandler(r.Group("/sensors"), uc, ws)
 	setupUsersHandler(r.Group("/users"), uc)
 }

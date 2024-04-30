@@ -8,15 +8,34 @@ import (
 )
 
 type Event struct {
-	eventRepository  EventRepository
-	sensorRepository SensorRepository
+	eventRepository             EventRepository
+	sensorRepository            SensorRepository
+	eventSubscriptionRepository SubscriptionRepository[domain.Event]
 }
 
-func NewEvent(er EventRepository, sr SensorRepository) *Event {
+func NewEvent(er EventRepository, sr SensorRepository, esr SubscriptionRepository[domain.Event]) *Event {
 	return &Event{
-		eventRepository:  er,
-		sensorRepository: sr,
+		eventRepository:             er,
+		sensorRepository:            sr,
+		eventSubscriptionRepository: esr,
 	}
+}
+
+func (e *Event) broadcastEvent(ctx context.Context, sensId int64, event *domain.Event) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	handle, err := e.eventSubscriptionRepository.GetBroadcastHandleById(ctx, sensId)
+	if err != nil {
+		if errors.Is(err, ErrSensorNotFound) {
+			return nil
+		}
+		return fmt.Errorf("can't get event broadcast handle: %w", err)
+	}
+
+	handle.Ch <- *event
+	return nil
 }
 
 func (e *Event) ReceiveEvent(ctx context.Context, event *domain.Event) error {
@@ -29,23 +48,23 @@ func (e *Event) ReceiveEvent(ctx context.Context, event *domain.Event) error {
 	if event.Timestamp.IsZero() {
 		return ErrInvalidEventTimestamp
 	}
-	sensor, err := e.sensorRepository.GetSensorBySerialNumber(ctx, event.SensorSerialNumber)
+	sens, err := e.sensorRepository.GetSensorBySerialNumber(ctx, event.SensorSerialNumber)
 	if err != nil {
 		return fmt.Errorf("invalid sensor serial number in event %v: %w", event, err)
 	}
-	event.SensorID = sensor.ID
+	event.SensorID = sens.ID
 
 	if err := e.eventRepository.SaveEvent(ctx, event); err != nil {
 		return fmt.Errorf("cannot save event %v: %w", event, err)
 	}
 
-	sensor.CurrentState = event.Payload
-	sensor.LastActivity = event.Timestamp
-	if err := e.sensorRepository.SaveSensor(ctx, sensor); err != nil {
-		return fmt.Errorf("cannot save new sensor state %v: %w", sensor, err)
+	sens.CurrentState = event.Payload
+	sens.LastActivity = event.Timestamp
+	if err := e.sensorRepository.SaveSensor(ctx, sens); err != nil {
+		return fmt.Errorf("cannot save new sensor state %v: %w", sens, err)
 	}
 
-	return nil
+	return e.broadcastEvent(ctx, sens.ID, event)
 }
 
 func (e *Event) GetLastEventBySensorID(ctx context.Context, id int64) (*domain.Event, error) {

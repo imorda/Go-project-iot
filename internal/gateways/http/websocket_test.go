@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"homework/internal/domain"
+	"homework/internal/repository/subscription/inmemory"
 	"homework/internal/usecase"
 	"net/http"
 	"net/http/httptest"
@@ -40,10 +41,13 @@ func (t *testSuite) TestWebSocketConnection() {
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
 
+	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+
 	uc := UseCases{
-		Event:  usecase.NewEvent(erMock, srMock),
-		Sensor: usecase.NewSensor(srMock),
-		User:   usecase.NewUser(urMock, sorMock, srMock),
+		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Sensor:            usecase.NewSensor(srMock),
+		User:              usecase.NewUser(urMock, sorMock, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)
@@ -78,10 +82,13 @@ func (t *testSuite) TestWebSocketConnectionFail() {
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
 
+	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+
 	uc := UseCases{
-		Event:  usecase.NewEvent(erMock, srMock),
-		Sensor: usecase.NewSensor(srMock),
-		User:   usecase.NewUser(urMock, sorMock, srMock),
+		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Sensor:            usecase.NewSensor(srMock),
+		User:              usecase.NewUser(urMock, sorMock, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)
@@ -108,10 +115,13 @@ func (t *testSuite) TestWebSocketShutdown_Server() {
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
 
+	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+
 	uc := UseCases{
-		Event:  usecase.NewEvent(erMock, srMock),
-		Sensor: usecase.NewSensor(srMock),
-		User:   usecase.NewUser(urMock, sorMock, srMock),
+		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Sensor:            usecase.NewSensor(srMock),
+		User:              usecase.NewUser(urMock, sorMock, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)
@@ -144,10 +154,13 @@ func (t *testSuite) TestWebSocketShutdown_Client() {
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
 
+	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+
 	uc := UseCases{
-		Event:  usecase.NewEvent(erMock, srMock),
-		Sensor: usecase.NewSensor(srMock),
-		User:   usecase.NewUser(urMock, sorMock, srMock),
+		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Sensor:            usecase.NewSensor(srMock),
+		User:              usecase.NewUser(urMock, sorMock, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)

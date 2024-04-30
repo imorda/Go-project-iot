@@ -19,7 +19,7 @@ func Test_event_ReceiveEvent(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		e := NewEvent(nil, nil)
+		e := NewEvent(nil, nil, nil)
 
 		err := e.ReceiveEvent(ctx, &domain.Event{})
 		assert.ErrorIs(t, err, ErrInvalidEventTimestamp)
@@ -33,7 +33,7 @@ func Test_event_ReceiveEvent(t *testing.T) {
 
 		sr.EXPECT().GetSensorBySerialNumber(ctx, gomock.Any()).Times(1).Return(nil, ErrSensorNotFound)
 
-		e := NewEvent(nil, sr)
+		e := NewEvent(nil, sr, nil)
 
 		err := e.ReceiveEvent(ctx, &domain.Event{
 			Timestamp: time.Now(),
@@ -55,7 +55,7 @@ func Test_event_ReceiveEvent(t *testing.T) {
 		expectedError := errors.New("some error")
 		er.EXPECT().SaveEvent(ctx, gomock.Any()).Times(1).Return(expectedError)
 
-		e := NewEvent(er, sr)
+		e := NewEvent(er, sr, nil)
 
 		err := e.ReceiveEvent(ctx, &domain.Event{
 			Timestamp:          time.Now(),
@@ -79,7 +79,7 @@ func Test_event_ReceiveEvent(t *testing.T) {
 		er := NewMockEventRepository(ctrl)
 		er.EXPECT().SaveEvent(ctx, gomock.Any()).Times(1).Return(nil)
 
-		e := NewEvent(er, sr)
+		e := NewEvent(er, sr, nil)
 
 		err := e.ReceiveEvent(ctx, &domain.Event{
 			Timestamp:          time.Now(),
@@ -110,7 +110,23 @@ func Test_event_ReceiveEvent(t *testing.T) {
 			return nil
 		})
 
-		e := NewEvent(er, sr)
+		esr := NewMockSubscriptionRepository[domain.Event](ctrl)
+		esr.EXPECT().GetBroadcastHandleById(ctx, gomock.Any()).Times(1).DoAndReturn(func(_ context.Context, id int64) (*domain.SubscriptionWriteHandle[domain.Event], error) {
+			assert.Equal(t, int64(1), id)
+
+			dummyChan := make(chan domain.Event)
+			go func() {
+				for range dummyChan {
+					continue // /dev/null channel
+				}
+			}()
+
+			return &domain.SubscriptionWriteHandle[domain.Event]{
+				Ch: dummyChan,
+			}, nil
+		})
+
+		e := NewEvent(er, sr, esr)
 		err := e.ReceiveEvent(ctx, &domain.Event{
 			Timestamp:          time.Now(),
 			SensorSerialNumber: "123",
