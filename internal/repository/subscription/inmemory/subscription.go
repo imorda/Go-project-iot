@@ -10,7 +10,7 @@ import (
 )
 
 type SubscriptionRepository[T any] struct {
-	storage map[int64]Subscribers[T]
+	storage map[int64]*Subscribers[T]
 	mu      sync.Mutex
 }
 
@@ -20,14 +20,27 @@ type Subscribers[T any] struct {
 
 func NewSubscriptionRepository[T any]() *SubscriptionRepository[T] {
 	return &SubscriptionRepository[T]{
-		storage: make(map[int64]Subscribers[T]),
+		storage: make(map[int64]*Subscribers[T]),
 		mu:      sync.Mutex{},
 	}
 }
 
-func (sr *SubscriptionRepository[T]) Subscribe(ctx context.Context, subscription domain.Subscription[T]) error {
+func (sr *SubscriptionRepository[T]) Subscribe(ctx context.Context, sensorId int64) (*domain.Subscription[T], error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return nil, err
+	}
+
+	ch := make(chan T, 1)
+
+	subscription := domain.Subscription[T]{
+		SubscriptionWriteHandle: domain.SubscriptionWriteHandle[T]{
+			Ch: ch,
+		},
+		SubscriptionReadHandle: domain.SubscriptionReadHandle[T]{
+			Ch: ch,
+		},
+		SensorID: sensorId,
+		Id:       uuid.New(),
 	}
 
 	sr.mu.Lock()
@@ -35,14 +48,14 @@ func (sr *SubscriptionRepository[T]) Subscribe(ctx context.Context, subscription
 
 	sm, ok := sr.storage[subscription.SensorID]
 	if !ok {
-		sm = Subscribers[T]{
+		sm = &Subscribers[T]{
 			SubscribersMap: map[uuid.UUID]domain.Subscription[T]{},
 		}
 		sr.storage[subscription.SensorID] = sm
 	}
 
 	sm.SubscribersMap[subscription.Id] = subscription
-	return nil
+	return &subscription, nil
 }
 
 func (sr *SubscriptionRepository[T]) Unsubscribe(ctx context.Context, sensId int64, subscriptionId uuid.UUID) error {
@@ -58,7 +71,13 @@ func (sr *SubscriptionRepository[T]) Unsubscribe(ctx context.Context, sensId int
 		return usecase.ErrSensorNotFound
 	}
 
+	sub, ok := sm.SubscribersMap[subscriptionId]
+	if !ok {
+		return usecase.ErrSubscriptionNotFound
+	}
+
 	delete(sm.SubscribersMap, subscriptionId)
+	close(sub.SubscriptionWriteHandle.Ch)
 
 	return nil
 }

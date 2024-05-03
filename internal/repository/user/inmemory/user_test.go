@@ -69,3 +69,29 @@ func TestUserRepository_SaveUser(t *testing.T) {
 		wg.Wait()
 	})
 }
+
+func FuzzUserRepository_SaveUser(f *testing.F) {
+	testcases := []string{"User Name", "John Doe", "null", ""}
+	for _, tc := range testcases {
+		f.Add(tc)
+	}
+	f.Fuzz(func(t *testing.T, username string) {
+		sr := NewUserRepository()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		user := domain.User{
+			Name: username,
+		}
+
+		err := sr.SaveUser(ctx, &user)
+		assert.NoError(t, err)
+
+		actual, err := sr.GetUserByID(ctx, user.ID)
+		if err != nil {
+			assert.Fail(t, "cannot get user by id", err)
+		}
+		assert.NotNil(t, actual)
+		assert.Equal(t, user.Name, actual.Name)
+	})
+}

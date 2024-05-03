@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"homework/internal/domain"
+	"time"
 )
 
 type Event struct {
@@ -22,10 +23,6 @@ func NewEvent(er EventRepository, sr SensorRepository, esr SubscriptionRepositor
 }
 
 func (e *Event) broadcastEvent(ctx context.Context, sensId int64, event *domain.Event) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
 	handle, err := e.eventSubscriptionRepository.GetBroadcastHandleById(ctx, sensId)
 	if err != nil {
 		if errors.Is(err, ErrSensorNotFound) {
@@ -39,9 +36,6 @@ func (e *Event) broadcastEvent(ctx context.Context, sensId int64, event *domain.
 }
 
 func (e *Event) ReceiveEvent(ctx context.Context, event *domain.Event) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 	if event == nil {
 		return errors.New("got nil event at ReceiveEvent()")
 	}
@@ -68,13 +62,22 @@ func (e *Event) ReceiveEvent(ctx context.Context, event *domain.Event) error {
 }
 
 func (e *Event) GetLastEventBySensorID(ctx context.Context, id int64) (*domain.Event, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
 	event, err := e.eventRepository.GetLastEventBySensorID(ctx, id)
 	if err != nil {
 		return event, fmt.Errorf("cannot get last event for id %v: %w", id, err)
 	}
 
 	return event, err
+}
+
+func (e *Event) GetEventsHistoryBySensorID(ctx context.Context, id int64, startTime, endTime time.Time) ([]*domain.Event, error) {
+	if startTime.After(endTime) {
+		return nil, ErrInvalidEventTimestamp
+	}
+	events, err := e.eventRepository.GetEventsHistoryBySensorID(ctx, id, startTime, endTime)
+	if err != nil {
+		return events, fmt.Errorf("cannot get events history for id %v: %w", id, err)
+	}
+
+	return events, err
 }

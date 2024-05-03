@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"homework/internal/domain"
-	"homework/internal/repository/subscription/inmemory"
 	"homework/internal/usecase"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
@@ -41,13 +42,26 @@ func (t *testSuite) TestWebSocketConnection() {
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
 
-	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+	esrMock := usecase.NewMockSubscriptionRepository[domain.Event](t.ctrl)
+	dummyChan := make(chan domain.Event, 1)
+	defer close(dummyChan)
+	subscriptionId := uuid.New()
+	esrMock.EXPECT().Subscribe(gomock.Any(), gomock.Eq(int64(1))).Return(&domain.Subscription[domain.Event]{
+		SubscriptionWriteHandle: domain.SubscriptionWriteHandle[domain.Event]{
+			Ch: dummyChan,
+		},
+		SubscriptionReadHandle: domain.SubscriptionReadHandle[domain.Event]{
+			Ch: dummyChan,
+		},
+		SensorID: 1,
+		Id:       subscriptionId,
+	}, nil).Times(1)
 
 	uc := UseCases{
-		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Event:             usecase.NewEvent(erMock, srMock, esrMock),
 		Sensor:            usecase.NewSensor(srMock),
 		User:              usecase.NewUser(urMock, sorMock, srMock),
-		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esrMock, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)
@@ -81,14 +95,13 @@ func (t *testSuite) TestWebSocketConnectionFail() {
 	srMock.EXPECT().GetSensorByID(gomock.Any(), gomock.Eq(int64(1))).Return(nil, usecase.ErrSensorNotFound).Times(1)
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
-
-	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+	esrMock := usecase.NewMockSubscriptionRepository[domain.Event](t.ctrl)
 
 	uc := UseCases{
-		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Event:             usecase.NewEvent(erMock, srMock, esrMock),
 		Sensor:            usecase.NewSensor(srMock),
 		User:              usecase.NewUser(urMock, sorMock, srMock),
-		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esrMock, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)
@@ -108,20 +121,37 @@ func (t *testSuite) TestWebSocketConnectionFail() {
 }
 
 func (t *testSuite) TestWebSocketShutdown_Server() {
+	defer t.ctrl.Finish()
+
 	engine := gin.Default()
 	erMock := usecase.NewMockEventRepository(t.ctrl)
+	erMock.EXPECT().GetLastEventBySensorID(gomock.Any(), gomock.Eq(int64(2))).Return(&domain.Event{SensorID: 2, Payload: 100}, nil).AnyTimes() // Stub-like configuration
 	srMock := usecase.NewMockSensorRepository(t.ctrl)
 	srMock.EXPECT().GetSensorByID(gomock.Any(), gomock.Eq(int64(2))).Return(&domain.Sensor{ID: 2}, nil).Times(1)
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
 
-	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+	esrMock := usecase.NewMockSubscriptionRepository[domain.Event](t.ctrl)
+	dummyChan := make(chan domain.Event, 1)
+	defer close(dummyChan)
+	subscriptionId := uuid.New()
+	esrMock.EXPECT().Subscribe(gomock.Any(), gomock.Eq(int64(2))).Return(&domain.Subscription[domain.Event]{
+		SubscriptionWriteHandle: domain.SubscriptionWriteHandle[domain.Event]{
+			Ch: dummyChan,
+		},
+		SubscriptionReadHandle: domain.SubscriptionReadHandle[domain.Event]{
+			Ch: dummyChan,
+		},
+		SensorID: 2,
+		Id:       subscriptionId,
+	}, nil).Times(1)
+	esrMock.EXPECT().Unsubscribe(gomock.Any(), gomock.Eq(int64(2)), gomock.Eq(subscriptionId)).Return(nil).Times(1)
 
 	uc := UseCases{
-		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Event:             usecase.NewEvent(erMock, srMock, esrMock),
 		Sensor:            usecase.NewSensor(srMock),
 		User:              usecase.NewUser(urMock, sorMock, srMock),
-		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esrMock, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)
@@ -147,20 +177,37 @@ func (t *testSuite) TestWebSocketShutdown_Server() {
 }
 
 func (t *testSuite) TestWebSocketShutdown_Client() {
+	defer t.ctrl.Finish()
+
 	engine := gin.Default()
 	erMock := usecase.NewMockEventRepository(t.ctrl)
+	erMock.EXPECT().GetLastEventBySensorID(gomock.Any(), gomock.Eq(int64(2))).Return(&domain.Event{SensorID: 2, Payload: 100}, nil).AnyTimes() // Stub-like configuration
 	srMock := usecase.NewMockSensorRepository(t.ctrl)
 	srMock.EXPECT().GetSensorByID(gomock.Any(), gomock.Eq(int64(2))).Return(&domain.Sensor{ID: 2}, nil).Times(1)
 	urMock := usecase.NewMockUserRepository(t.ctrl)
 	sorMock := usecase.NewMockSensorOwnerRepository(t.ctrl)
 
-	esr := inmemory.NewSubscriptionRepository[domain.Event]() // Not mock since no other tests are provided for that object
+	esrMock := usecase.NewMockSubscriptionRepository[domain.Event](t.ctrl)
+	dummyChan := make(chan domain.Event, 1)
+	defer close(dummyChan)
+	subscriptionId := uuid.New()
+	esrMock.EXPECT().Subscribe(gomock.Any(), gomock.Eq(int64(2))).Return(&domain.Subscription[domain.Event]{
+		SubscriptionWriteHandle: domain.SubscriptionWriteHandle[domain.Event]{
+			Ch: dummyChan,
+		},
+		SubscriptionReadHandle: domain.SubscriptionReadHandle[domain.Event]{
+			Ch: dummyChan,
+		},
+		SensorID: 2,
+		Id:       subscriptionId,
+	}, nil).Times(1)
+	esrMock.EXPECT().Unsubscribe(gomock.Any(), gomock.Eq(int64(2)), gomock.Eq(subscriptionId)).Return(nil).Times(1)
 
 	uc := UseCases{
-		Event:             usecase.NewEvent(erMock, srMock, esr),
+		Event:             usecase.NewEvent(erMock, srMock, esrMock),
 		Sensor:            usecase.NewSensor(srMock),
 		User:              usecase.NewUser(urMock, sorMock, srMock),
-		EventSubscription: usecase.NewSubscription[domain.Event](esr, srMock),
+		EventSubscription: usecase.NewSubscription[domain.Event](esrMock, srMock),
 	}
 
 	ws := NewWebSocketHandler(uc)

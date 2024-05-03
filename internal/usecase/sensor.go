@@ -29,9 +29,6 @@ func (s *Sensor) validateSensType(t domain.SensorType) bool {
 }
 
 func (s *Sensor) RegisterSensor(ctx context.Context, sensor *domain.Sensor) (*domain.Sensor, error) {
-	if err := ctx.Err(); err != nil {
-		return sensor, err
-	}
 	if sensor == nil {
 		return sensor, errors.New("got nil sensor at RegisterSensor()")
 	}
@@ -59,10 +56,6 @@ func (s *Sensor) RegisterSensor(ctx context.Context, sensor *domain.Sensor) (*do
 }
 
 func (s *Sensor) GetSensors(ctx context.Context) ([]domain.Sensor, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
 	sens, err := s.sensorRepository.GetSensors(ctx)
 	if err != nil {
 		return sens, fmt.Errorf("cannot get sensors from repository: %w", err)
@@ -71,10 +64,6 @@ func (s *Sensor) GetSensors(ctx context.Context) ([]domain.Sensor, error) {
 }
 
 func (s *Sensor) GetSensorByID(ctx context.Context, id int64) (*domain.Sensor, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
 	sens, err := s.sensorRepository.GetSensorByID(ctx, id)
 	if err != nil {
 		return sens, fmt.Errorf("cannot get sensors from repository for id %v: %w", id, err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -16,6 +17,7 @@ var (
 	ErrSensorNotFound          = errors.New("sensor not found")
 	ErrUserNotFound            = errors.New("user not found")
 	ErrEventNotFound           = errors.New("event not found")
+	ErrSubscriptionNotFound    = errors.New("subscription not found")
 )
 
 // requires mockgen v1.7+
@@ -34,7 +36,7 @@ type SensorRepository interface {
 
 type SubscriptionRepository[T any] interface {
 	// Subscribe - функция подписки на какое-то изменение датчика
-	Subscribe(ctx context.Context, subscription domain.Subscription[T]) error
+	Subscribe(ctx context.Context, sensorId int64) (*domain.Subscription[T], error)
 	// Unsubscribe - функция отмены подписки
 	Unsubscribe(ctx context.Context, sensId int64, subscriptionId uuid.UUID) error
 	// GetBroadcastHandleById - функция получения "ручки" для оповещения всех подписчиков об изменении
@@ -46,6 +48,8 @@ type EventRepository interface {
 	SaveEvent(ctx context.Context, event *domain.Event) error
 	// GetLastEventBySensorID - функция получения последнего события по ID датчика
 	GetLastEventBySensorID(ctx context.Context, id int64) (*domain.Event, error)
+	// GetEventsHistoryBySensorID - функция получения истории событий по ID датчика и временному промежутку
+	GetEventsHistoryBySensorID(ctx context.Context, id int64, startTime, endTime time.Time) ([]*domain.Event, error)
 }
 
 type UserRepository interface {

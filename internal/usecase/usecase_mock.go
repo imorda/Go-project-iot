@@ -8,6 +8,7 @@ import (
 	context "context"
 	domain "homework/internal/domain"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
@@ -134,17 +135,18 @@ func (mr *MockSubscriptionRepositoryMockRecorder[T]) GetBroadcastHandleById(ctx,
 }
 
 // Subscribe mocks base method.
-func (m *MockSubscriptionRepository[T]) Subscribe(ctx context.Context, subscription domain.Subscription[T]) error {
+func (m *MockSubscriptionRepository[T]) Subscribe(ctx context.Context, sensorId int64) (*domain.Subscription[T], error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Subscribe", ctx, subscription)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "Subscribe", ctx, sensorId)
+	ret0, _ := ret[0].(*domain.Subscription[T])
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Subscribe indicates an expected call of Subscribe.
-func (mr *MockSubscriptionRepositoryMockRecorder[T]) Subscribe(ctx, subscription interface{}) *gomock.Call {
+func (mr *MockSubscriptionRepositoryMockRecorder[T]) Subscribe(ctx, sensorId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockSubscriptionRepository[T])(nil).Subscribe), ctx, subscription)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockSubscriptionRepository[T])(nil).Subscribe), ctx, sensorId)
 }
 
 // Unsubscribe mocks base method.
@@ -182,6 +184,21 @@ func NewMockEventRepository(ctrl *gomock.Controller) *MockEventRepository {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockEventRepository) EXPECT() *MockEventRepositoryMockRecorder {
 	return m.recorder
+}
+
+// GetEventsHistoryBySensorID mocks base method.
+func (m *MockEventRepository) GetEventsHistoryBySensorID(ctx context.Context, id int64, startTime, endTime time.Time) ([]*domain.Event, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEventsHistoryBySensorID", ctx, id, startTime, endTime)
+	ret0, _ := ret[0].([]*domain.Event)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEventsHistoryBySensorID indicates an expected call of GetEventsHistoryBySensorID.
+func (mr *MockEventRepositoryMockRecorder) GetEventsHistoryBySensorID(ctx, id, startTime, endTime interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventsHistoryBySensorID", reflect.TypeOf((*MockEventRepository)(nil).GetEventsHistoryBySensorID), ctx, id, startTime, endTime)
 }
 
 // GetLastEventBySensorID mocks base method.
