@@ -29,6 +29,10 @@ func TestServerConfiguration(t *testing.T) {
 
 func TestConnectionAndSuccessfulFinalization(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer time.Sleep(100 * time.Millisecond) // For some mystical reason in the CI Unsubscribe mock does not catch the
+	// unsubscribe call in time while it works on my machine (both windows and ubuntu) ¯\_(ツ)_/¯
+	// And ctrl.Finish() does not wait for all the expectations to be met
+
 	defer ctrl.Finish()
 
 	erMock := usecase.NewMockEventRepository(ctrl)
