@@ -7,6 +7,7 @@ import (
 	"homework/internal/usecase"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
@@ -72,6 +73,7 @@ func TestConnectionAndSuccessfulFinalization(t *testing.T) {
 	defer wg.Wait()
 	defer cancel()
 
+	time.Sleep(100 * time.Millisecond) // Need to wait for the server to start
 	conn, _, err := websocket.Dial(ctx, "ws://localhost:8765/api/sensors/1/events", nil)
 	require.NoError(t, err)
 	op, msg, err := conn.Read(ctx)
