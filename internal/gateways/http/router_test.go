@@ -7,6 +7,7 @@ import (
 	"homework/internal/domain"
 	"homework/internal/gateways/http/dtos"
 	"homework/internal/usecase"
+	"homework/pkg/pg_test"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,18 +21,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	eventRepository "homework/internal/repository/event/inmemory"
-	sensorRepository "homework/internal/repository/sensor/inmemory"
-	subscriptionRepository "homework/internal/repository/subscription/inmemory"
-	userRepository "homework/internal/repository/user/inmemory"
+	eventRepository "homework/internal/repository/event/postgres"
+	sensorRepository "homework/internal/repository/sensor/postgres"
+	subscriptionRepository "homework/internal/repository/subscription/postgres"
+	userRepository "homework/internal/repository/user/postgres"
 )
 
 var (
-	er  = eventRepository.NewEventRepository()
-	sr  = sensorRepository.NewSensorRepository()
-	ur  = userRepository.NewUserRepository()
-	sor = userRepository.NewSensorOwnerRepository()
-	esr = subscriptionRepository.NewSubscriptionRepository[domain.Event]()
+	er  = &eventRepository.EventRepository{}
+	sr  = &sensorRepository.SensorRepository{}
+	ur  = &userRepository.UserRepository{}
+	sor = &userRepository.SensorOwnerRepository{}
+	esr = &subscriptionRepository.SubscriptionRepository[domain.Event]{}
 )
 
 var useCases = UseCases{
@@ -49,6 +50,15 @@ var (
 var router = gin.Default()
 
 func init() {
+	testDB := pg_test.SetupTestDatabase()
+	testDbInstance := testDB.DbInstance
+
+	*er = *eventRepository.NewEventRepository(testDbInstance)
+	*sr = *sensorRepository.NewSensorRepository(testDbInstance)
+	*ur = *userRepository.NewUserRepository(testDbInstance)
+	*sor = *userRepository.NewSensorOwnerRepository(testDbInstance)
+	*esr = *subscriptionRepository.NewSubscriptionRepository[domain.Event](testDbInstance)
+
 	reg, err := useCases.Sensor.RegisterSensor(context.Background(), &domain.Sensor{
 		SerialNumber: "1233211230",
 		Type:         "cc",

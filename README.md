@@ -23,7 +23,19 @@
 3. Обновите upstream: ```git fetch upstream``` или ```git fetch --all```
 4. Подтяните изменения из upstream и ребазируйтесь на них: ```git rebase upstream/main```
 
+## Подготовка окружения
+
+1. Установить docker ([windows](https://docs.docker.com/desktop/install/windows-install/), [Mac](https://docs.docker.com/desktop/install/mac-install/), [Linux](https://docs.docker.com/desktop/install/linux-install/))
+2. Установить [docker-compose](https://docs.docker.com/compose/install/)
+3. Установить [migrate](https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md)
+4. Базу данных можно развернуть с помощью docker-compose (файл в корне проекта). Для этого необходимо выполнить команду `docker-compose up -d`. После того, как она запустится, к ней можно подключаться - `postgres://postgres:postgres@127.0.0.1:5432/db`.
+5. Для миграции нужно выполнить команду `migrate -path=./migrations -database postgres://postgres:postgres@127.0.0.1:5432/db?sslmode=disable up`. Также к проекту приложен Makefile, с помощью которого тоже можно выполнить миграцию - `make migrate-up`.
+
+Make изначально установлен только в Mac и Linux, для Windows его следует [установить](https://stackoverflow.com/questions/32127524/how-to-install-and-use-make-in-windows).
+
 ## Запуск тестов
+
+Тесты в процессе запуска используют docker. Убедитесь, что он у вас запущен.
 
 1. зайти в терминале в каталог с домашним заданием
 2. вызвать ```go test -v ./... -race```
