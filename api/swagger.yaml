@@ -161,6 +161,111 @@ paths:
           description: Ошибка исполнения
           schema:
             $ref: "#/definitions/Error"
+  /sensors/{sensor_id}/history:
+    get:
+      summary: Получение истории состояний датчика
+      description: Получает историю состояний датчика за указанный период
+      operationId: getSensorHistory
+      tags:
+        - sensors
+      parameters:
+        - name: "sensor_id"
+          in: "path"
+          description: "Идентификатор датчика"
+          required: true
+          type: "integer"
+          format: "int64"
+        - name: "start_date"
+          in: "query"
+          required: true
+          type: string
+          format: date-time
+          description: Начало диапазона запрашиваемой истории состояний датчика
+        - name: "end_date"
+          in: "query"
+          required: true
+          type: string
+          format: date-time
+          description: Окончание диапазона запрашиваемой истории состояний датчика
+      responses:
+        "200":
+          description: Успех
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/SensorHistory"
+        "404":
+          description: Датчик с указанным идентификатором не найден
+        "422":
+          description: Идентификатор датчика и/или временной диапазон не валиден
+          schema:
+            $ref: "#/definitions/Error"
+        "406":
+          description: Запрошен неподдерживаемый формат тела ответа
+        default:
+          description: Ошибка исполнения
+          schema:
+            $ref: "#/definitions/Error"
+    head:
+      summary: Запрос заголовков
+      description: Возвращает заголовки ответа GET
+      operationId: headSensorHistory
+      tags:
+        - sensors
+      parameters:
+        - name: "sensor_id"
+          in: "path"
+          description: "Идентификатор датчика"
+          required: true
+          type: "integer"
+          format: "int64"
+        - name: "start_date"
+          in: "query"
+          required: true
+          type: string
+          format: date-time
+          description: Начало диапазона запрашиваемой истории состояний датчика
+        - name: "end_date"
+          in: "query"
+          required: true
+          type: string
+          format: date-time
+          description: Окончание диапазона запрашиваемой истории состояний датчика
+      responses:
+        "200":
+          description: Успех
+        "404":
+          description: Датчик с указанным идентификатором не найден
+        "422":
+          description: Идентификатор датчика не валиден
+        "406":
+          description: Запрошен неподдерживаемый формат тела ответа
+        default:
+          description: Ошибка исполнения
+          schema:
+            $ref: "#/definitions/Error"
+    options:
+      summary: Получение доступных методов
+      description: Возвращает в заголовке Allow список доступных методов
+      operationId: sensorHistoryOptions
+      tags:
+        - sensors
+      parameters:
+        - name: "sensor_id"
+          in: "path"
+          description: "Идентификатор датчика"
+          required: true
+          type: "integer"
+          format: "int64"
+      responses:
+        "204":
+          description: Успех
+          headers:
+            Allow:
+              description: Список доступных методов
+              type: array
+              items:
+                type: string
   /sensors/{sensor_id}:
     get:
       summary: Получение датчика
@@ -579,4 +684,23 @@ definitions:
       - payload
     example:
       sensor_serial_number: "1234567890"
+      payload: 10
+  SensorHistory:
+    title: SensorHistory
+    description: История событий датчика
+    type: object
+    properties:
+      timestamp:
+        description: Время возникновения события
+        type: string
+        format: date-time
+      payload:
+        description: Состояние датчика
+        type: integer
+        format: int64
+    required:
+      - timestamp
+      - payload
+    example:
+      timestamp: "2018-01-01T00:00:00Z"
       payload: 10

@@ -2,13 +2,20 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"homework/internal/domain"
+	"homework/internal/gateways/http/dtos"
 	"homework/internal/usecase"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/go-openapi/strfmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -34,9 +41,32 @@ var useCases = UseCases{
 	EventSubscription: usecase.NewSubscription[domain.Event](esr, sr),
 }
 
+var (
+	eventTime    = time.Now()
+	testSensorId int64
+)
+
 var router = gin.Default()
 
 func init() {
+	reg, err := useCases.Sensor.RegisterSensor(context.Background(), &domain.Sensor{
+		SerialNumber: "1233211230",
+		Type:         "cc",
+		Description:  "test sensor",
+	})
+	if err != nil {
+		panic(err)
+	}
+	testSensorId = reg.ID
+	err = useCases.Event.ReceiveEvent(context.Background(), &domain.Event{
+		Timestamp:          eventTime,
+		SensorSerialNumber: "1233211230",
+		SensorID:           testSensorId,
+		Payload:            1,
+	})
+	if err != nil {
+		panic(err)
+	}
 	setupRouter(router, useCases, NewWebSocketHandler(useCases))
 }
 
@@ -321,7 +351,7 @@ func TestSensorsRoutes(t *testing.T) {
 		t.Run("sensor_exists_200", func(t *testing.T) {
 			w := httptest.NewRecorder()
 
-			req, _ := http.NewRequest(http.MethodGet, "/sensors/1", nil)
+			req, _ := http.NewRequest(http.MethodGet, "/sensors/"+strconv.FormatInt(testSensorId, 10), nil)
 			req.Header.Add("Accept", "application/json")
 			router.ServeHTTP(w, req)
 
@@ -352,7 +382,7 @@ func TestSensorsRoutes(t *testing.T) {
 		t.Run("sensor_doesnt_exist_404", func(t *testing.T) {
 			w := httptest.NewRecorder()
 
-			req, _ := http.NewRequest(http.MethodGet, "/sensors/2", nil)
+			req, _ := http.NewRequest(http.MethodGet, "/sensors/10", nil)
 			req.Header.Add("Accept", "application/json")
 			router.ServeHTTP(w, req)
 
@@ -395,7 +425,7 @@ func TestSensorsRoutes(t *testing.T) {
 		t.Run("sensor_doesnt_exist_404", func(t *testing.T) {
 			w := httptest.NewRecorder()
 
-			req, _ := http.NewRequest(http.MethodHead, "/sensors/2", nil)
+			req, _ := http.NewRequest(http.MethodHead, "/sensors/10", nil)
 			req.Header.Add("Accept", "application/json")
 			router.ServeHTTP(w, req)
 
@@ -439,6 +469,241 @@ func TestSensorsRoutes(t *testing.T) {
 				// allowed := strings.Split(w.Header().Get("Allow"), ",")
 				// assert.Contains(t, allowed, http.MethodOptions, "В разрешённых методах нет OPTIONS")
 				// assert.Contains(t, allowed, http.MethodPost, "В разрешённых методах нет POST")
+			})
+		}
+	})
+
+	t.Run("GET_sensors_sensor_history", func(t *testing.T) {
+		t.Run("history_ok_200", func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+			escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+			req, _ := http.NewRequest(http.MethodGet, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+			req.Header.Add("Accept", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code, "Получили в ответ не тот код")
+			assert.True(t, json.Valid(w.Body.Bytes()), "В ответе не json")
+			var resp []dtos.SensorHistory
+			assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp), "В ответе не список событий")
+			assert.Greater(t, len(resp), 0, "В ответе пусто")
+		})
+
+		t.Run("422", func(t *testing.T) {
+			t.Run("id_has_invalid_sensor_id_format", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				req, _ := http.NewRequest(http.MethodGet, "/sensors/abc", nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("query_has_invalid_time_frame", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+				escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+				req, _ := http.NewRequest(http.MethodGet, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedEndDate+"&end_date="+escapedStartDate, nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("query_has_invalid_start_time_format", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				escapedStartDate := "invalid"
+				escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+				req, _ := http.NewRequest(http.MethodGet, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("query_has_invalid_end_time_format", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+				escapedEndDate := "invalid"
+				req, _ := http.NewRequest(http.MethodGet, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("missing_query", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				req, _ := http.NewRequest(http.MethodGet, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history", nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+		})
+
+		t.Run("requested_unsupported_body_format_406", func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+			escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+			req, _ := http.NewRequest(http.MethodGet, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+			req.Header.Add("Accept", "application/xml")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusNotAcceptable, w.Code, "Получили в ответ не тот код")
+		})
+
+		t.Run("sensor_doesnt_exist_404", func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+			escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+			req, _ := http.NewRequest(http.MethodGet, "/sensors/10/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+			req.Header.Add("Accept", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusNotFound, w.Code, "Получили в ответ не тот код")
+		})
+	})
+
+	t.Run("HEAD_sensors_sensor_history", func(t *testing.T) {
+		t.Run("history_ok_200", func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+			escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+			req, _ := http.NewRequest(http.MethodHead, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+			req.Header.Add("Accept", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code, "Получили в ответ не тот код")
+			assert.Empty(t, w.Body)
+			assert.NotEmpty(t, w.Header().Get("Content-Length"), "Content-Length не задан")
+		})
+
+		t.Run("422", func(t *testing.T) {
+			t.Run("id_has_invalid_sensor_id_format", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				req, _ := http.NewRequest(http.MethodHead, "/sensors/abc", nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("query_has_invalid_time_frame", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+				escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+				req, _ := http.NewRequest(http.MethodHead, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedEndDate+"&end_date="+escapedStartDate, nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("query_has_invalid_start_time_format", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				escapedStartDate := "invalid"
+				escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+				req, _ := http.NewRequest(http.MethodHead, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("query_has_invalid_end_time_format", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+				escapedEndDate := "invalid"
+				req, _ := http.NewRequest(http.MethodHead, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+
+			t.Run("missing_query", func(t *testing.T) {
+				w := httptest.NewRecorder()
+
+				req, _ := http.NewRequest(http.MethodHead, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history", nil)
+				req.Header.Add("Accept", "application/json")
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "Получили в ответ не тот код")
+			})
+		})
+
+		t.Run("requested_unsupported_body_format_406", func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+			escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+			req, _ := http.NewRequest(http.MethodHead, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+			req.Header.Add("Accept", "application/xml")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusNotAcceptable, w.Code, "Получили в ответ не тот код")
+		})
+
+		t.Run("sensor_doesnt_exist_404", func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			escapedStartDate := url.QueryEscape(strfmt.DateTime(eventTime).String())
+			escapedEndDate := url.QueryEscape(strfmt.DateTime(eventTime.Add(1 * time.Second)).String())
+			req, _ := http.NewRequest(http.MethodHead, "/sensors/10/history?start_date="+escapedStartDate+"&end_date="+escapedEndDate, nil)
+			req.Header.Add("Accept", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusNotFound, w.Code, "Получили в ответ не тот код")
+		})
+	})
+
+	t.Run("OPTIONS_sensors_history_204", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodOptions, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code, "Получили в ответ не тот код")
+		allowed := strings.Split(w.Header().Get("Allow"), ",")
+		assert.Contains(t, allowed, http.MethodOptions, "В разрешённых методах нет OPTIONS")
+		assert.Contains(t, allowed, http.MethodGet, "В разрешённых методах нет GET")
+		assert.Contains(t, allowed, http.MethodHead, "В разрешённых методах нет HEAD")
+	})
+
+	// Другие методы не поддерживаем.
+	t.Run("OTHER_sensors_history_405", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input string
+			want  int
+		}{
+			{http.MethodPost, http.MethodPost, http.StatusMethodNotAllowed},
+			{http.MethodPut, http.MethodPut, http.StatusMethodNotAllowed},
+			{http.MethodDelete, http.MethodDelete, http.StatusMethodNotAllowed},
+			{http.MethodPatch, http.MethodPatch, http.StatusMethodNotAllowed},
+			{http.MethodConnect, http.MethodConnect, http.StatusMethodNotAllowed},
+			{http.MethodTrace, http.MethodTrace, http.StatusMethodNotAllowed},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				req, _ := http.NewRequest(tt.input, "/sensors/"+strconv.FormatInt(testSensorId, 10)+"/history", nil)
+				router.ServeHTTP(w, req)
+
+				assert.Equal(t, tt.want, w.Code, "Получили в ответ не тот код")
 			})
 		}
 	})

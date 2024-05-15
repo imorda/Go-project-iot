@@ -10,6 +10,7 @@ require (
 	github.com/go-openapi/validate v0.24.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/go-set/v2 v2.1.0
 	github.com/stretchr/testify v1.9.0
 	nhooyr.io/websocket v1.8.11
 )

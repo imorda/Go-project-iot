@@ -22,9 +22,6 @@ func NewUser(ur UserRepository, sor SensorOwnerRepository, sr SensorRepository) 
 }
 
 func (u *User) RegisterUser(ctx context.Context, user *domain.User) (*domain.User, error) {
-	if err := ctx.Err(); err != nil {
-		return user, err
-	}
 	if user == nil {
 		return user, errors.New("got nil user at RegisterUser()")
 	}
@@ -39,9 +36,6 @@ func (u *User) RegisterUser(ctx context.Context, user *domain.User) (*domain.Use
 }
 
 func (u *User) AttachSensorToUser(ctx context.Context, userID, sensorID int64) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 	_, err := u.userRepository.GetUserByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("got invalid user id (%v): %w", userID, err)
@@ -58,9 +52,6 @@ func (u *User) AttachSensorToUser(ctx context.Context, userID, sensorID int64) e
 }
 
 func (u *User) GetUserSensors(ctx context.Context, userID int64) ([]domain.Sensor, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
 	_, err := u.userRepository.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("got invalid user id (%v): %w", userID, err)

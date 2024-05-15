@@ -134,6 +134,87 @@ func sensorByIdHeadHandler(uc UseCases) gin.HandlerFunc {
 	}
 }
 
+func sensorHistoryCommonHandler(ctx *gin.Context, uc UseCases) []dtos.SensorHistory {
+	if err := isFormatSupported(ctx, JSONType); err != nil {
+		abortWithAPIError(ctx, http.StatusNotAcceptable, err)
+		return nil
+	}
+
+	sensorId, err := strconv.ParseInt(ctx.Param("sensor_id"), 10, 64)
+	if err != nil {
+		abortWithAPIError(ctx, http.StatusUnprocessableEntity, err)
+		return nil
+	}
+	startDateQ, ok := ctx.GetQuery("start_date")
+	if !ok {
+		abortWithAPIError(ctx, http.StatusUnprocessableEntity, usecase.ErrInvalidEventTimestamp)
+		return nil
+	}
+	startTime, err := strfmt.ParseDateTime(startDateQ)
+	if err != nil {
+		abortWithAPIError(ctx, http.StatusUnprocessableEntity, err)
+		return nil
+	}
+	endDateQ, ok := ctx.GetQuery("end_date")
+	if !ok {
+		abortWithAPIError(ctx, http.StatusUnprocessableEntity, usecase.ErrInvalidEventTimestamp)
+		return nil
+	}
+	endTime, err := strfmt.ParseDateTime(endDateQ)
+	if err != nil {
+		abortWithAPIError(ctx, http.StatusUnprocessableEntity, err)
+		return nil
+	}
+
+	_, err = uc.Sensor.GetSensorByID(ctx, sensorId)
+	if errors.Is(err, usecase.ErrSensorNotFound) {
+		ctx.AbortWithStatus(http.StatusNotFound)
+		return nil
+	} else if err != nil {
+		abortWithAPIError(ctx, http.StatusInternalServerError, err)
+		return nil
+	}
+
+	hist, err := uc.Event.GetEventsHistoryBySensorID(ctx, sensorId, time.Time(startTime), time.Time(endTime))
+	if err != nil {
+		if errors.Is(err, usecase.ErrInvalidEventTimestamp) {
+			abortWithAPIError(ctx, http.StatusUnprocessableEntity, err)
+			return nil
+		}
+		abortWithAPIError(ctx, http.StatusInternalServerError, err)
+		return nil
+	}
+
+	histDtos := make([]dtos.SensorHistory, 0, len(hist))
+	for _, e := range hist {
+		timestampDto := strfmt.DateTime(e.Timestamp)
+		histDto := dtos.SensorHistory{
+			Payload:   &e.Payload,
+			Timestamp: &timestampDto,
+		}
+		histDtos = append(histDtos, histDto)
+	}
+	return histDtos
+}
+
+func sensorHistoryGetHandler(uc UseCases) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		sensorHistoryDtos := sensorHistoryCommonHandler(ctx, uc)
+		if !ctx.IsAborted() {
+			ctx.AbortWithStatusJSON(http.StatusOK, sensorHistoryDtos)
+		}
+	}
+}
+
+func sensorHistoryHeadHandler(uc UseCases) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		sensorHistoryDtos := sensorHistoryCommonHandler(ctx, uc)
+		if !ctx.IsAborted() {
+			headImpl(ctx, sensorHistoryDtos)
+		}
+	}
+}
+
 func sensorSubscribeHandler(uc UseCases, ws *WebSocketHandler) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if err := isFormatSupported(ctx, JSONType); err != nil {
@@ -164,18 +245,10 @@ func sensorSubscribeHandler(uc UseCases, ws *WebSocketHandler) gin.HandlerFunc {
 			}
 		}()
 
-		go func() {
-			time.Sleep(1500 * time.Millisecond)
-			// hacky workaround for strange tests expectation that I don't announce the last sensor event immediately
-			// on connection (implementing idiomatic observer pattern).
-			// Websockets are needed for realtime updates on each event, not periodic notifications as that behaviour
-			// can be easily achieved with simple polling!
-
-			notifyEvent, err := uc.Event.GetLastEventBySensorID(ctx, sensorId)
-			if err == nil {
-				subscription.SubscriptionWriteHandle.Ch <- *notifyEvent
-			}
-		}()
+		notifyEvent, err := uc.Event.GetLastEventBySensorID(ctx, sensorId)
+		if err == nil {
+			subscription.SubscriptionWriteHandle.Ch <- *notifyEvent
+		}
 
 		err = ws.HandleSubscription(ctx, channelBatcher(eventChannelAdapter(subscription.SubscriptionReadHandle.Ch), BatchPeriod))
 		if err != nil && !errors.Is(err, context.Canceled) {
@@ -196,4 +269,8 @@ func setupSensorsHandler(r *gin.RouterGroup, uc UseCases, ws *WebSocketHandler) 
 	r.OPTIONS("/:sensor_id", optionsHandler(http.MethodGet, http.MethodHead))
 
 	r.GET("/:sensor_id/events", sensorSubscribeHandler(uc, ws))
+
+	r.GET("/:sensor_id/history", sensorHistoryGetHandler(uc))
+	r.HEAD("/:sensor_id/history", sensorHistoryHeadHandler(uc))
+	r.OPTIONS("/:sensor_id/history", optionsHandler(http.MethodGet, http.MethodHead))
 }
