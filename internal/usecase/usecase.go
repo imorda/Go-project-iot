@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"homework/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -16,6 +18,8 @@ var (
 	ErrEventNotFound           = errors.New("event not found")
 )
 
+// requires mockgen v1.7+
+
 //go:generate mockgen -source usecase.go -package usecase -destination usecase_mock.go
 type SensorRepository interface {
 	// SaveSensor - функция сохранения датчика
@@ -26,6 +30,15 @@ type SensorRepository interface {
 	GetSensorByID(ctx context.Context, id int64) (*domain.Sensor, error)
 	// GetSensorBySerialNumber - функция получения датчика по серийному номеру
 	GetSensorBySerialNumber(ctx context.Context, sn string) (*domain.Sensor, error)
+}
+
+type SubscriptionRepository[T any] interface {
+	// Subscribe - функция подписки на какое-то изменение датчика
+	Subscribe(ctx context.Context, subscription domain.Subscription[T]) error
+	// Unsubscribe - функция отмены подписки
+	Unsubscribe(ctx context.Context, sensId int64, subscriptionId uuid.UUID) error
+	// GetBroadcastHandleById - функция получения "ручки" для оповещения всех подписчиков об изменении
+	GetBroadcastHandleById(ctx context.Context, id int64) (*domain.SubscriptionWriteHandle[T], error)
 }
 
 type EventRepository interface {

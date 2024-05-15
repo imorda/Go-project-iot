@@ -10,6 +10,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	uuid "github.com/google/uuid"
 )
 
 // MockSensorRepository is a mock of SensorRepository interface.
@@ -92,6 +93,72 @@ func (m *MockSensorRepository) SaveSensor(ctx context.Context, sensor *domain.Se
 func (mr *MockSensorRepositoryMockRecorder) SaveSensor(ctx, sensor interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSensor", reflect.TypeOf((*MockSensorRepository)(nil).SaveSensor), ctx, sensor)
+}
+
+// MockSubscriptionRepository is a mock of SubscriptionRepository interface.
+type MockSubscriptionRepository[T any] struct {
+	ctrl     *gomock.Controller
+	recorder *MockSubscriptionRepositoryMockRecorder[T]
+}
+
+// MockSubscriptionRepositoryMockRecorder is the mock recorder for MockSubscriptionRepository.
+type MockSubscriptionRepositoryMockRecorder[T any] struct {
+	mock *MockSubscriptionRepository[T]
+}
+
+// NewMockSubscriptionRepository creates a new mock instance.
+func NewMockSubscriptionRepository[T any](ctrl *gomock.Controller) *MockSubscriptionRepository[T] {
+	mock := &MockSubscriptionRepository[T]{ctrl: ctrl}
+	mock.recorder = &MockSubscriptionRepositoryMockRecorder[T]{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSubscriptionRepository[T]) EXPECT() *MockSubscriptionRepositoryMockRecorder[T] {
+	return m.recorder
+}
+
+// GetBroadcastHandleById mocks base method.
+func (m *MockSubscriptionRepository[T]) GetBroadcastHandleById(ctx context.Context, id int64) (*domain.SubscriptionWriteHandle[T], error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBroadcastHandleById", ctx, id)
+	ret0, _ := ret[0].(*domain.SubscriptionWriteHandle[T])
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBroadcastHandleById indicates an expected call of GetBroadcastHandleById.
+func (mr *MockSubscriptionRepositoryMockRecorder[T]) GetBroadcastHandleById(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBroadcastHandleById", reflect.TypeOf((*MockSubscriptionRepository[T])(nil).GetBroadcastHandleById), ctx, id)
+}
+
+// Subscribe mocks base method.
+func (m *MockSubscriptionRepository[T]) Subscribe(ctx context.Context, subscription domain.Subscription[T]) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Subscribe", ctx, subscription)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Subscribe indicates an expected call of Subscribe.
+func (mr *MockSubscriptionRepositoryMockRecorder[T]) Subscribe(ctx, subscription interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockSubscriptionRepository[T])(nil).Subscribe), ctx, subscription)
+}
+
+// Unsubscribe mocks base method.
+func (m *MockSubscriptionRepository[T]) Unsubscribe(ctx context.Context, sensId int64, subscriptionId uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Unsubscribe", ctx, sensId, subscriptionId)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Unsubscribe indicates an expected call of Unsubscribe.
+func (mr *MockSubscriptionRepositoryMockRecorder[T]) Unsubscribe(ctx, sensId, subscriptionId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unsubscribe", reflect.TypeOf((*MockSubscriptionRepository[T])(nil).Unsubscribe), ctx, sensId, subscriptionId)
 }
 
 // MockEventRepository is a mock of EventRepository interface.

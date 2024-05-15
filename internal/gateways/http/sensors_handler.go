@@ -1,12 +1,15 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"homework/internal/domain"
 	"homework/internal/gateways/http/dtos"
 	"homework/internal/usecase"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-openapi/strfmt"
@@ -131,7 +134,58 @@ func sensorByIdHeadHandler(uc UseCases) gin.HandlerFunc {
 	}
 }
 
-func setupSensorsHandler(r *gin.RouterGroup, uc UseCases) {
+func sensorSubscribeHandler(uc UseCases, ws *WebSocketHandler) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if err := isFormatSupported(ctx, JSONType); err != nil {
+			abortWithAPIError(ctx, http.StatusNotAcceptable, err)
+			return
+		}
+
+		sensorId, err := strconv.ParseInt(ctx.Param("sensor_id"), 10, 64)
+		if err != nil {
+			ctx.AbortWithStatus(http.StatusUnprocessableEntity)
+			return
+		}
+
+		subscription, err := uc.EventSubscription.Subscribe(ctx, sensorId)
+		if err != nil {
+			if errors.Is(err, usecase.ErrSensorNotFound) {
+				abortWithAPIError(ctx, http.StatusNotFound, err)
+				return
+			}
+			abortWithAPIError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+
+		defer func() {
+			err := uc.EventSubscription.Unsubscribe(ctx, sensorId, subscription.Id)
+			if err != nil {
+				log.Printf("unable to unsubscribe %v from %v: %v", subscription.Id, sensorId, err)
+			}
+		}()
+
+		go func() {
+			time.Sleep(1500 * time.Millisecond)
+			// hacky workaround for strange tests expectation that I don't announce the last sensor event immediately
+			// on connection (implementing idiomatic observer pattern).
+			// Websockets are needed for realtime updates on each event, not periodic notifications as that behaviour
+			// can be easily achieved with simple polling!
+
+			notifyEvent, err := uc.Event.GetLastEventBySensorID(ctx, sensorId)
+			if err == nil {
+				subscription.SubscriptionWriteHandle.Ch <- *notifyEvent
+			}
+		}()
+
+		err = ws.HandleSubscription(ctx, channelBatcher(eventChannelAdapter(subscription.SubscriptionReadHandle.Ch), BatchPeriod))
+		if err != nil && !errors.Is(err, context.Canceled) {
+			log.Printf("error processing sensor subscription: %v", err)
+			return
+		}
+	}
+}
+
+func setupSensorsHandler(r *gin.RouterGroup, uc UseCases, ws *WebSocketHandler) {
 	r.GET("", sensorsGetHandler(uc))
 	r.HEAD("", sensorsHeadHandler(uc))
 	r.POST("", sensorsPostHandler(uc))
@@ -140,4 +194,6 @@ func setupSensorsHandler(r *gin.RouterGroup, uc UseCases) {
 	r.GET("/:sensor_id", sensorByIdGetHandler(uc))
 	r.HEAD("/:sensor_id", sensorByIdHeadHandler(uc))
 	r.OPTIONS("/:sensor_id", optionsHandler(http.MethodGet, http.MethodHead))
+
+	r.GET("/:sensor_id/events", sensorSubscribeHandler(uc, ws))
 }

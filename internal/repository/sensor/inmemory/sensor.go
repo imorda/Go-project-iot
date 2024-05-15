@@ -34,17 +34,16 @@ func (r *SensorRepository) SaveSensor(ctx context.Context, sensor *domain.Sensor
 	}
 	if sensor.RegisteredAt.IsZero() {
 		sensor.RegisteredAt = time.Now()
+
+		r.mu.Lock()
+		r.lastId++
+		id := r.lastId
+		sensor.ID = id
+
+		r.idStorage[id] = sensor
+		r.snStorage[sensor.SerialNumber] = sensor
+		r.mu.Unlock()
 	}
-
-	r.mu.Lock()
-	r.lastId++
-	id := r.lastId
-	sensor.ID = id
-
-	sc := *sensor
-	r.idStorage[id] = &sc
-	r.snStorage[sensor.SerialNumber] = &sc
-	r.mu.Unlock()
 
 	return nil
 }

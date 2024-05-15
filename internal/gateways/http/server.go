@@ -1,8 +1,13 @@
 package http
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"homework/internal/domain"
 	"homework/internal/usecase"
+	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,21 +16,24 @@ type Server struct {
 	host   string
 	port   uint16
 	router *gin.Engine
+	wsh    *WebSocketHandler
 }
 
 type UseCases struct {
-	Event  *usecase.Event
-	Sensor *usecase.Sensor
-	User   *usecase.User
+	Event             *usecase.Event
+	Sensor            *usecase.Sensor
+	User              *usecase.User
+	EventSubscription *usecase.Subscription[domain.Event]
 }
 
 func NewServer(useCases UseCases, options ...func(*Server)) *Server {
 	r := gin.Default()
 	r.HandleMethodNotAllowed = true
 	apiGroup := r.Group("/api")
-	setupRouter(apiGroup, useCases)
+	wsh := NewWebSocketHandler(useCases)
+	setupRouter(apiGroup, useCases, wsh)
 
-	s := &Server{router: r, host: "localhost", port: 8080}
+	s := &Server{router: r, host: "localhost", port: 8080, wsh: wsh}
 	for _, o := range options {
 		o(s)
 	}
@@ -45,6 +53,25 @@ func WithPort(port uint16) func(*Server) {
 	}
 }
 
-func (s *Server) Run() error {
-	return s.router.Run(fmt.Sprintf("%s:%d", s.host, s.port))
+func (s *Server) Run(ctx context.Context, cancel context.CancelFunc) error {
+	serverErr := make(chan error)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", s.host, s.port),
+		Handler: s.router,
+	}
+
+	go func() {
+		serverErr <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverErr:
+		return fmt.Errorf("server crashed: %w", err)
+	case <-ctx.Done():
+		log.Printf("Gracefully shutting down the server...")
+		composedErr := errors.Join(s.wsh.Shutdown(), srv.Shutdown(ctx))
+		cancel()
+		return composedErr
+	}
 }
