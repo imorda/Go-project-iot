@@ -16,7 +16,7 @@ import (
 	httpGateway "homework/internal/gateways/http"
 	eventRepository "homework/internal/repository/event/postgres"
 	sensorRepository "homework/internal/repository/sensor/postgres"
-	subscriptionRepository "homework/internal/repository/subscription/postgres"
+	subscriptionRepository "homework/internal/repository/subscription/inmemory"
 	userRepository "homework/internal/repository/user/postgres"
 )
 
@@ -39,7 +39,7 @@ func main() {
 	sr := sensorRepository.NewSensorRepository(pool)
 	ur := userRepository.NewUserRepository(pool)
 	sor := userRepository.NewSensorOwnerRepository(pool)
-	esr := subscriptionRepository.NewSubscriptionRepository[domain.Event](pool)
+	esr := subscriptionRepository.NewSubscriptionRepository[domain.Event]()
 
 	useCases := httpGateway.UseCases{
 		Event:             usecase.NewEvent(er, sr, esr),

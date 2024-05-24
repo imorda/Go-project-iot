@@ -23,7 +23,7 @@ import (
 
 	eventRepository "homework/internal/repository/event/postgres"
 	sensorRepository "homework/internal/repository/sensor/postgres"
-	subscriptionRepository "homework/internal/repository/subscription/postgres"
+	subscriptionRepository "homework/internal/repository/subscription/inmemory"
 	userRepository "homework/internal/repository/user/postgres"
 )
 
@@ -57,7 +57,7 @@ func init() {
 	*sr = *sensorRepository.NewSensorRepository(testDbInstance)
 	*ur = *userRepository.NewUserRepository(testDbInstance)
 	*sor = *userRepository.NewSensorOwnerRepository(testDbInstance)
-	*esr = *subscriptionRepository.NewSubscriptionRepository[domain.Event](testDbInstance)
+	*esr = *subscriptionRepository.NewSubscriptionRepository[domain.Event]()
 
 	reg, err := useCases.Sensor.RegisterSensor(context.Background(), &domain.Sensor{
 		SerialNumber: "1233211230",
