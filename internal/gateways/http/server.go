@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"homework/internal/domain"
+	"homework/internal/metrics"
 	"homework/internal/usecase"
 	"log"
 	"net/http"
@@ -29,6 +30,7 @@ type UseCases struct {
 func NewServer(useCases UseCases, options ...func(*Server)) *Server {
 	r := gin.Default()
 	r.HandleMethodNotAllowed = true
+	r.Use(metrics.RedMiddleware())
 	apiGroup := r.Group("/api")
 	wsh := NewWebSocketHandler(useCases)
 	setupRouter(apiGroup, useCases, wsh)

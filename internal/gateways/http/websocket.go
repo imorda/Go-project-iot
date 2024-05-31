@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"homework/internal/metrics"
 	"log"
 	"sync"
 	"time"
@@ -41,6 +42,7 @@ func (h *WebSocketHandler) HandleSubscription(c *gin.Context, ch <-chan []byte) 
 		connCtx := conn.CloseRead(c)
 		h.mu.Lock()
 		h.conns[conn] = struct{}{}
+		metrics.AddCounter("ws_connections", 1)
 		h.mu.Unlock()
 
 		for {
@@ -65,6 +67,7 @@ func (h *WebSocketHandler) HandleSubscription(c *gin.Context, ch <-chan []byte) 
 	if _, ok := h.conns[conn]; ok {
 		closeErr = conn.CloseNow()
 		delete(h.conns, conn)
+		metrics.AddCounter("ws_connections", -1)
 	}
 	h.mu.Unlock()
 
@@ -80,6 +83,7 @@ func (h *WebSocketHandler) Shutdown() error {
 
 	for conn := range h.conns {
 		err := conn.Close(websocket.StatusNormalClosure, "server shutting down")
+		metrics.AddCounter("ws_connections", -1)
 		if err != nil {
 			errs = append(errs, err)
 		}

@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	httpGateway "homework/internal/gateways/http"
+	metrics "homework/internal/metrics"
 	eventRepository "homework/internal/repository/event/postgres"
 	sensorRepository "homework/internal/repository/sensor/postgres"
 	subscriptionRepository "homework/internal/repository/subscription/inmemory"
@@ -59,6 +60,15 @@ func main() {
 		}
 		httpGateway.WithPort(uint16(iPort))(r)
 	}
+
+	metricsPort := 8008
+	if port, ok := os.LookupEnv("METRICS_PORT"); ok {
+		metricsPort, err = strconv.Atoi(port)
+		if err != nil {
+			log.Fatalf("invalid METRICS_PORT is set: %v", err)
+		}
+	}
+	metrics.InitMetricsServer(metricsPort)
 
 	if err := r.Run(ctx, cancel); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Printf("error during server shutdown: %v", err)
